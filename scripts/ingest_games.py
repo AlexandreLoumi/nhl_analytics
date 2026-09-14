@@ -1,57 +1,31 @@
 import requests
 import pandas as pd
-import numpy as np
-from dotenv import load_dotenv
-import os
+import json
 
-load_dotenv()
 
-password = os.getenv("SNOWFLAKE_PASSWORD")
+response_schedule = requests.get("https://api-web.nhle.com/v1/schedule/2025-10-07")
 
-print(os.getenv("SNOWFLAKE_USER"))
-print(os.getenv("SNOWFLAKE_ACCOUNT"))
+data_schedule = response_schedule.json()
 
-response_col = requests.get("https://api-web.nhle.com/v1/club-schedule-season/COL/20252026")
-print(response_col.status_code)
+current_date = data_schedule["regularSeasonStartDate"]
+current_date = pd.to_datetime(current_date, format="%Y-%m-%d")
+playoff_end = pd.to_datetime(data_schedule["playoffEndDate"])
 
-data_col = response_col.json()
 
 games = []
 
-for game in data_col["games"]:
-    if game["gameType"] == 2:
-        games.append(game)
+while current_date <= playoff_end:
+    response_schedule = requests.get(f"https://api-web.nhle.com/v1/schedule/{current_date.strftime('%Y-%m-%d')}")
+    data_schedule = response_schedule.json()
 
-print(len([game for game in games if game["gameType"] == 2]))
+    
+    for day in data_schedule["gameWeek"]:
+        for game in day["games"]:
+            if game["gameType"] in (2, 3):
+                games.append(game)
 
-# print(games[0])
-
-print(games[0]["id"])
-print(games[0]["homeTeam"]["commonName"]["default"])
-print(games[0]["homeTeam"]["abbrev"])
-print(games[0]["homeTeam"]["score"])
-print(games[0]["awayTeam"]["commonName"]["default"])
-print(games[0]["awayTeam"]["abbrev"])
-print(games[0]["awayTeam"]["score"])
-print(games[0]["gameDate"])
+    current_date = pd.to_datetime(data_schedule["nextStartDate"], format="%Y-%m-%d")
 
 
-
-raw_games = []
-
-for game in games:
-    raw_games.append({
-        "game_id": game["id"],
-        "home_team": game["homeTeam"]["commonName"]["default"],
-        "home_team_abbrev": game["homeTeam"]["abbrev"],
-        "home_team_score": game["homeTeam"]["score"],
-        "away_team": game["awayTeam"]["commonName"]["default"],
-        "away_team_abbrev": game["awayTeam"]["abbrev"],
-        "away_team_score": game["awayTeam"]["score"],
-        "game_date": game["gameDate"]
-    })
-
-raw_games_df = pd.DataFrame(raw_games)
-
-print(raw_games_df.head())
-print(raw_games_df.info())
+with open("data/raw/games.json", "w", encoding="utf-8") as f:
+    json.dump(games, f, ensure_ascii=False, indent=2)
