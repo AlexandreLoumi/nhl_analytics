@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
 from collections import Counter
+import json
 
 team_abbrevs = [
     "ANA", "BOS", "BUF", "CAR", "CBJ", "CGY", "CHI", "COL",
@@ -53,3 +54,6 @@ for player in players:
 players = list({player["id"]: player for player in reversed(players)}.values())
 
 print(len(set(player_ids)))
+
+with open("data/raw/players.json", "w", encoding="utf-8") as f:
+    json.dump(players, f, ensure_ascii=False, indent=2)
